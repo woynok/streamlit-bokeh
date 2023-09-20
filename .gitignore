@@ -1,3 +1,7 @@
 data/*.html
 data/*.ipynb
 secret/
+/*.ipynb
+
+*.pyc
+__pycache__/
