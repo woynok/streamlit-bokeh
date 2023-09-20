@@ -38,11 +38,12 @@ p.hbar(y='words', right='選択した文書の単語頻度', left = 0, source=so
 # p.y_range.factors = ['Apples', 'Pears', 'Nectarines']
 
 # bar chart に sort するボタンを作る
-callback = CustomJS(args=dict(source=source, plot = p), code=open("a.js", encoding="utf-8").read())
+callback = CustomJS(args=dict(source=source, plot = p), code=open("lib/pagewise/fruit_bar/sort_button.js", encoding="utf-8").read())
 button = Button(label="Sort", button_type="success")
 button.js_on_event("button_click", callback)
-from bokeh.layouts import gridplot
-grid = gridplot([[p, button]])
+from bokeh.layouts import gridplot, column
+figure = column(p, button)
+# grid = gridplot([[p, button]])
 # st.bokeh_chart(grid)
 
 
@@ -52,10 +53,10 @@ grid = gridplot([[p, button]])
 # # p.legend.orientation = "horizontal"
 # p.legend.click_policy="hide"
 
-save(grid, filename="bokeh_word_bar.html", title="word counts by year")
+save(figure, filename="data/bokeh_word_bar.html", title="word counts by year")
 
 from streamlit.components.v1 import html
-html(open("bokeh_word_bar.html", 'r').read(), width=800, height=800)
+html(open("data/bokeh_word_bar.html", 'r').read(), width=800, height=800)
 
 # st.bokeh_chart(
 #     Row(p, button),
