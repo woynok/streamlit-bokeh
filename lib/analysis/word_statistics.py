@@ -56,11 +56,14 @@ class WordFrequency:
             return [self.d_frequency[word] for word in words]
 
 class TfIdf:
-    def __init__(self, vector_matrix:csr_matrix, vocab: np.ndarray, d_word_to_pos: dict[str, str] = None):
+    def __init__(self, vector_matrix:csr_matrix, vocab: np.ndarray, d_word_to_pos: dict[str, str] = None, labels_unique: list[int|str] = None):
         self.vector_matrix: csr_matrix = vector_matrix
         self.vocab: np.ndarray = vocab
-        self.d_vector: dict[str, int] = {word:freq for word, freq in zip(vocab, self.vector_matrix.sum(axis = 0).tolist()[0])}
-        self.sorted_tuple: list[tuple[str, int]] = sorted(self.d_vector.items(), key=lambda x: x[1], reverse=True)
+        self.labels_unique: list[int|str] = labels_unique
+        d_vectors = dict()
+        for ilabel, label in enumerate(labels_unique):
+            d_vectors[label] = [(vocab[jvocab], v) for (icol, jvocab), v in self.vector_matrix.getrow(ilabel).todok().items()]
+        self.d_vectors: dict[int|str, tuple[str, int]] = d_vectors
         self.d_word_to_pos: dict[str, str] = d_word_to_pos
 
 class WordCoOccurrence:
@@ -213,7 +216,7 @@ class WordStatistics:
             list[str]: delimiterで連結された文書のリスト
         """
         if self._delimeted_docs is None:
-            self._delimeted_docs = self.merge_by_delimiter(self._filtered_docs, self.delimiter)
+            self._delimeted_docs = self.merge_by_delimiter(self.filtered_docs, self.delimiter)
         return self._delimeted_docs
 
     @property
@@ -442,12 +445,13 @@ class WordStatistics:
             )
         return wco
     
-    def calculate_tf_idf(self, filtered_docs: SimpleDocs = None,
+    def calculate_tf_idf(self,
+                         filtered_docs: SimpleDocs = None,
                          min_document_frequency: float = 0.0,
                          max_document_frequency: float = 1.00,
                          n_words: int = 3000,
                         # TODO: vocab を min_df, max_dfからきたものにする
-                         labels: list = None,
+                         labels: np.ndarray = None,
                          )->TfIdf:
         """TF-IDFを計算する
 
@@ -464,8 +468,6 @@ class WordStatistics:
             delimeted_docs = self.delimeted_docs
 
         # labels の 値ごとにdelimeted_docsを分割する
-        if labels is None:
-            labels = [0] * len(delimeted_docs)
         d_label_to_delimeted_docs = {}
         for label, delimeted_doc in zip(labels, delimeted_docs):
             if label not in d_label_to_delimeted_docs:
@@ -473,7 +475,7 @@ class WordStatistics:
             else:
                 d_label_to_delimeted_docs[label] = d_label_to_delimeted_docs[label] + delimeted_doc
 
-        labels_unique = sorted(list(set(labels)))
+        labels_unique = sorted(list(set(labels.tolist())))
         vectorizer_tfidf = TfidfVectorizer(
             token_pattern=self.token_pattern,
             lowercase=False,
@@ -486,7 +488,12 @@ class WordStatistics:
         try:
             tfidf_matrix = vectorizer_tfidf.fit_transform(corpus)
             vocab = vectorizer_tfidf.get_feature_names_out()
-            return TfIdf(tfidf_matrix, vocab, d_word_to_pos = self.d_word_to_pos)
+            return TfIdf(
+                tfidf_matrix,
+                vocab,
+                d_word_to_pos = self.d_word_to_pos,
+                labels_unique = labels_unique,
+                )
         except Exception as e:
             print(f"word_statistics tf-idf error: {e}")
             return None

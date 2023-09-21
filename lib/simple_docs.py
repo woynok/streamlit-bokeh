@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Iterator
 import numpy as np
 import yaml
 import pickle
@@ -110,7 +111,7 @@ class SimpleSentence:
     def __len__(self)->int:
         return len(self.words)
     
-    def __iter__(self)->SimpleWord:
+    def __iter__(self)->Iterator[SimpleWord]:
         return iter(self.words)
     
     def similarity(self, other:SimpleSentence|str|np.ndarray, model: SentenceTransformer)->float:
@@ -201,7 +202,7 @@ class SimpleDoc:
     def __len__(self)->int:
         return len(self.sentences)
     
-    def __iter__(self)->SimpleSentence:
+    def __iter__(self)->Iterator[SimpleSentence]:
         return iter(self.sentences)
     
     def to_dict(self)->dict:
@@ -228,7 +229,7 @@ class SimpleDocs:
     def __len__(self)->int:
         return len(self.docs)
     
-    def __iter__(self)->SimpleDoc:
+    def __iter__(self)->Iterator[SimpleDoc]:
         return iter(self.docs)
     
     def to_dict(self)->dict:

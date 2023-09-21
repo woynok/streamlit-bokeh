@@ -16,10 +16,10 @@ class DocumentMap:
         filterd_indices (dict): Outlier 除去などをした場合にこのMapで使っている文書のインデックスを保存する
         xs (np.ndarray): 2次元に削減した埋め込みベクトルのx座標
         ys (np.ndarray): 2次元に削減した埋め込みベクトルのy座標
-        dict_labels (dict): n_clustersをkeyに、そのクラスタに属する文書のインデックスの辞書
+        dict_labels (dict[int, np.ndarray]): n_clustersをkeyに、そのクラスタに属する文書のインデックスの辞書
     """
 
-    def __init__(self, embeddings: np.ndarray, max_cluster: int = 8):
+    def __init__(self, embeddings: np.ndarray, max_cluster: int = 14):
         if max_cluster < 2 or not isinstance(max_cluster, int):
             raise ValueError(
                 "max_cluster must be an integer greater than or equal to 2"
@@ -29,8 +29,9 @@ class DocumentMap:
         self.embeddings_norm = self.embeddings / np.linalg.norm(self.embeddings, axis = 1, keepdims = True)
         self.max_cluster = max_cluster
         self.filterd_indices = None  # Outlier 除去などをした場合にこのMapで使っている文書のインデックスを保存する
+        self.dict_labels: dict[int, np.ndarray] = None
         self.xs, self.ys = self._reduce_dimension()
-        self.dict_labels = self._clustering_all()
+        self.dict_labels: dict[int, np.ndarray] = self._clustering_all()
     
     def _reduce_dimension(self):
         """文書の埋め込みベクトルを2次元に削減する
@@ -45,7 +46,7 @@ class DocumentMap:
         embeddings_reduced = reducer.fit_transform(self.embeddings)
         return embeddings_reduced[:, 0], embeddings_reduced[:, 1]
 
-    def _clustering_all(self):
+    def _clustering_all(self)->dict[int, np.ndarray]:
         """文書の埋め込みベクトルをクラスタリングする
 
         Args:
@@ -57,7 +58,7 @@ class DocumentMap:
         dict_labels = {}
         for n_clusters in range(2, self.max_cluster + 1):
             kmeans_model = KMeans(
-                n_clusters=self.max_cluster,
+                n_clusters=n_clusters,
                 random_state=0,
                 n_init="auto",
                 init="k-means++",

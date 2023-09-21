@@ -1,3 +1,4 @@
+from typing import Iterator
 import pandas as pd
 
 class AuxiliaryDataColumn:
@@ -112,7 +113,7 @@ class AuxiliaryDataColumns:
     def shape(self) -> tuple[int, int]:
         return (len(self.columns), len(self))
 
-    def __iter__(self):
+    def __iter__(self)->Iterator[AuxiliaryDataColumn]:
         return iter(self.columns)
     
     def __repr__(self) -> str:

@@ -6,6 +6,7 @@ import pickle
 import spacy
 from spacy.tokens.doc import Doc
 from sentence_transformers import SentenceTransformer
+import torch
 from lib.text_data.trf_vector import TrfVectors
 from lib.text_data.auxiliary_data_columns import AuxiliaryDataColumns
 from lib.simple_docs import SimpleDocs
@@ -63,9 +64,14 @@ class TextData:
         if configuration:
             self.configuration = configuration
         else:
+            # pytorch gpu が使える場合は cuda を指定する
+            if torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = None
             self.configuration = {
                 "pickle_protocol": 4,
-                "device": "cuda",
+                "device": device,
                 "tokenizer": "ja_ginza_electra_with_vector",
                 "embedding_model": "pkshatech/GLuCoSE-base-ja",
             }
