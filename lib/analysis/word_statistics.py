@@ -1,9 +1,7 @@
-from typing import Literal
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from spacy.tokens import Doc, Span
-from scipy.sparse import csr_matrix, coo_matrix, dok_matrix
+from scipy.sparse import csr_matrix, dok_matrix
 import networkx as nx
 from pyvis.network import Network
 from lib.simple_docs import SimpleDocs, SimpleDoc, SimpleSentence, SimpleWord

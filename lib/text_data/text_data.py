@@ -3,13 +3,7 @@ import re
 import numpy as np
 import pandas as pd
 import pickle
-from sklearn.random_projection import GaussianRandomProjection
-import torch
-import spacy
-from sentence_transformers import SentenceTransformer
-from spacy.language import Language
-from lib.text_data.trf_vector import TrfVectors
-from lib.text_data.auxiliary_data_columns import AuxiliaryDataColumns
+from . import AuxiliaryDataColumns
 from lib.simple_docs import SimpleDocs
 
 class TextData:
@@ -147,6 +141,8 @@ class TextData:
         Returns:
             np.ndarray: 文書の埋め込みベクトル
         """
+        import torch
+        from sentence_transformers import SentenceTransformer
         if torch.cuda.is_available():
             device = "cuda"
         else:
@@ -163,7 +159,11 @@ class TextData:
         Returns:
             list[str]: 文書のlist
         """
+        import spacy
+        from spacy.language import Language
+        from lib.simple_docs import SimpleDocs
         if self.configuration["tokenizer"] == "ja_ginza_electra_with_vector":
+            from .trf_vector import TrfVectors
             nlp = spacy.load("ja_ginza_electra")
             @Language.factory('trf_vector', assigns=["doc._.doc_vector"])
             def create_trf_vector_hook(nlp, name):
@@ -182,6 +182,7 @@ class TextData:
                     for word in sentence:
                         vectors.append(word.vector)
             vectors = np.array(vectors)
+            from sklearn.random_projection import GaussianRandomProjection
             reducer = GaussianRandomProjection(n_components = 768//8)
             vectors = reducer.fit_transform(vectors)
             ivector = 0
@@ -202,7 +203,7 @@ class TextData:
 
         Returns:
             TextData: TextData
-        """
+        """        
         aux_data = AuxiliaryDataColumns.from_dataframe(df, exclude_columns=[text_column_name])
         texts = df[text_column_name].tolist()
         return cls(texts, aux_data)

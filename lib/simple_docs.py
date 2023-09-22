@@ -2,9 +2,11 @@ from __future__ import annotations
 from typing import Iterator
 import numpy as np
 import pickle
-from sentence_transformers import SentenceTransformer
-from spacy.language import Language
-from spacy.tokens import Token, Span, Doc
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
+    from spacy.language import Language
+    from spacy.tokens import Token, Span, Doc
 
 class SimpleWord:
     def __init__(self, text, lemma, is_stop, pos, vector, ent_type):

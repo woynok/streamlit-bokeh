@@ -1,7 +1,4 @@
 import numpy as np
-from sklearn.manifold import TSNE
-from sklearn.cluster import KMeans
-from umap import UMAP
 
 class DocumentMap:
     """2次元上の点として文書を表現するための位置やラベルを持つクラス
@@ -42,6 +39,7 @@ class DocumentMap:
         Returns:
             np.ndarray: 2次元に削減した埋め込みベクトル
         """
+        from umap import UMAP
         reducer = UMAP(n_components=2, min_dist = 0.3, metric="cosine", random_state=0, n_jobs = 1)
         embeddings_reduced = reducer.fit_transform(self.embeddings)
         return embeddings_reduced[:, 0], embeddings_reduced[:, 1]
@@ -55,6 +53,7 @@ class DocumentMap:
         Returns:
             dict: n_clustersをkeyに、そのクラスタに属する文書のインデックスの辞書
         """
+        from sklearn.cluster import KMeans
         dict_labels = {}
         for n_clusters in range(2, self.max_cluster + 1):
             kmeans_model = KMeans(

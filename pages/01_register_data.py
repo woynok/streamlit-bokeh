@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
-from lib.text_data.text_data import TextData
+from lib.text_data import TextData
+from lib.text_data import TextDataStore as tds
 from lib.analysis import DocumentMap, WordStatistics
 import pickle
 
@@ -9,9 +10,9 @@ if st.button("read csv data and perform heavy processing"):
     td = TextData.from_dataframe(df, text_column_name="content")
     td.calculate_embeddings()
     td.tokenize_docs()
-    td.save("data/app_reviews_thums_up.pkl")
+    tds.dump(td, "data/app_reviews_thums_up.tds.gz")
 
-td = TextData.load("data/app_reviews_thums_up.pkl")
+td = tds.load("data/app_reviews_thums_up.tds.gz")
 
 if st.toggle("load document map from pickle", value = True):
     with open("data/documentmap_thums_up.pkl", "rb") as f:
@@ -26,4 +27,3 @@ with st.spinner("word statistics..."):
 if st.button("update document map"):
     with open("data/documentmap_thums_up.pkl", "wb") as f:
         pickle.dump(dm, f)
-

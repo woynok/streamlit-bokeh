@@ -123,7 +123,9 @@ bokeh_result = Column(scatter_result.scatter, table_result.table)
 
 # streamlit 1.24 以降から bokeh のDataTable が動かなくなったのでhtml表示
 # st.bokeh_chart(bokeh_result)
-save(bokeh_result, "tmp.html")
-with open("tmp.html") as f:
-    html_str = f.read()
+html_str = bokeh_result._repr_html_()
+# # save(bokeh_result, "tmp.html")
+# with open("tmp.html") as f:
+#     html_str = f.read()
 html(html_str, width=1000, height=700)
+
