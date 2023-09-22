@@ -2,16 +2,17 @@
 
 import itertools
 import sys
-
 import numpy as np
+import torch
 import spacy
-from spacy.language import Language
 from spacy.tokens import Doc
 
-try:
-    import cupy    # spaCyでGPUが使用可能な場合はcuPyをインポートする必要がある
-except ImportError:
-    pass
+if torch.cuda.is_available() and 'cupy' in sys.modules:
+    # spaCyでGPUが使用可能な場合はcuPyをインポートする必要がある
+    import cupy
+    DEVICE = "cuda"
+else:
+    DEVICE = "cpu"
 
 class TrfVectors:
     def __init__(self, name):
@@ -45,7 +46,7 @@ class TrfVectors:
             return np.zeros(768)
         vectors = []
         tensors = doc._.trf_data.tensors[0]
-        if 'cupy' in sys.modules:    # GPUを使用しているならtensorはCuPy配列になるためNumPy配列に変換する必要あり
+        if DEVICE is not None and DEVICE == "cuda":
             tensors = cupy.asnumpy(tensors)
         tensors = np.reshape(tensors, (tensors.shape[0] * tensors.shape[1], -1))
         for idx, token in enumerate(doc):
@@ -73,7 +74,3 @@ class TrfVectors:
             return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))    # コサイン類似度
         except ZeroDivisionError:
             return 0.0
-
-@Language.factory('trf_vector', assigns=["doc._.doc_vector"])
-def create_trf_vector_hook(nlp, name):
-    return TrfVectors(nlp)

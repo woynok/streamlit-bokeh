@@ -3,14 +3,14 @@ import re
 import numpy as np
 import pandas as pd
 import pickle
-import spacy
-from spacy.tokens.doc import Doc
-from sentence_transformers import SentenceTransformer
+from sklearn.random_projection import GaussianRandomProjection
 import torch
+import spacy
+from sentence_transformers import SentenceTransformer
+from spacy.language import Language
 from lib.text_data.trf_vector import TrfVectors
 from lib.text_data.auxiliary_data_columns import AuxiliaryDataColumns
 from lib.simple_docs import SimpleDocs
-from sklearn.random_projection import GaussianRandomProjection
 
 class TextData:
     """文書のテキストデータを保持するクラス
@@ -22,7 +22,7 @@ class TextData:
         aux_data (AuxiliaryDataColumns): 文書のテキスト以外のデータを保持する
         preprocess_for_sentence (function, optional): 文書の前処理を行う関数. Defaults to None.
         embeddings (np.ndarray, optional): 文書の埋め込みベクトル. Defaults to None.
-        docs (list[Doc], optional): spacyでtokenize済みのDocのリスト. Defaults to None.
+        docs (list[str], optional): 文書のlist. Defaults to None.
         configuration (dict, optional): 設定. Defaults to None.
     
     Attributes:
@@ -30,7 +30,7 @@ class TextData:
         aux_data (AuxiliaryDataColumns): 文書のテキスト以外のデータを保持する
         preprocess_for_sentence (function): 文書の前処理を行う関数
         embeddings (np.ndarray): 文書の埋め込みベクトル
-        docs (list[Doc]): spacyでtokenize済みのDocのリスト
+        docs (list[str]|SimpleDocs): 文書のlist。tokenize_docs() するとSimpleDocsになる
         configuration (dict): 設定
     
     Methods:
@@ -52,26 +52,26 @@ class TextData:
         aux_data: AuxiliaryDataColumns,
         preprocess_for_sentence=None,
         embeddings: np.ndarray = None,
-        docs: list[Doc] = None,
+        docs: list[str]|SimpleDocs = None,
         configuration: dict = None,
+        description_short: str = "",
+        description_detail: str = "",
+        _meta = None,
     ):
         self.preprocess_for_sentence = preprocess_for_sentence
         self.texts = texts
         self.aux_data = aux_data
         self._embeddings = embeddings
         self._docs = docs
+        self._meta = _meta
+        self.description_short = description_short
+        self.description_detail = description_detail
 
         if configuration:
             self.configuration = configuration
         else:
-            # pytorch gpu が使える場合は cuda を指定する
-            if torch.cuda.is_available():
-                device = "cuda"
-            else:
-                device = None
             self.configuration = {
                 "pickle_protocol": 4,
-                "device": device,
                 "tokenizer": "ja_ginza_electra_with_vector",
                 "embedding_model": "pkshatech/GLuCoSE-base-ja",
             }
@@ -138,7 +138,7 @@ class TextData:
         return self._embeddings
 
     @property
-    def docs(self) -> list[Doc]:
+    def docs(self) -> SimpleDocs|list[str]:
         return self._docs
 
     def calculate_embeddings(self):
@@ -147,8 +147,13 @@ class TextData:
         Returns:
             np.ndarray: 文書の埋め込みベクトル
         """
+        if torch.cuda.is_available():
+            device = "cuda"
+        else:
+            device = "cpu"
+
         model = SentenceTransformer(
-            self.configuration["embedding_model"], device=self.configuration["device"]
+            self.configuration["embedding_model"], device=device
         )
         self._embeddings = model.encode(self.texts)
 
@@ -156,10 +161,13 @@ class TextData:
         """文書を単語に分割する
 
         Returns:
-            list[Doc]: spacyでtokenize済みのDocのリスト
+            list[str]: 文書のlist
         """
         if self.configuration["tokenizer"] == "ja_ginza_electra_with_vector":
             nlp = spacy.load("ja_ginza_electra")
+            @Language.factory('trf_vector', assigns=["doc._.doc_vector"])
+            def create_trf_vector_hook(nlp, name):
+                return TrfVectors(nlp)
             # vector をつけるとかなり重くなる。random projection で次元削減
             nlp.add_pipe("trf_vector", last=True)
         else:

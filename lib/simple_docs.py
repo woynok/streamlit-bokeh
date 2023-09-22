@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Iterator
 import numpy as np
-import yaml
 import pickle
 from sentence_transformers import SentenceTransformer
 from spacy.language import Language
@@ -33,18 +32,35 @@ class SimpleWord:
     def __len__(self)->int:
         return len(self.text)
     
-    def to_dict(self)->dict:
-        return {
-            "text": self.text,
-            "lemma": self.lemma,
-            "is_stop": self.is_stop,
-            "pos": self.pos,
-            "vector": self.vector
-        }
+    def to_dict(self, without_vector = True)->dict:
+        if without_vector:
+            return {
+                "text": self.text,
+                "lemma": self.lemma,
+                "is_stop": self.is_stop,
+                "pos": self.pos,
+                "ent_type": self.ent_type,
+            }
+        else:
+            return {
+                "text": self.text,
+                "lemma": self.lemma,
+                "is_stop": self.is_stop,
+                "pos": self.pos,
+                "vector": self.vector,
+                "ent_type": self.ent_type,
+            }
     
     @staticmethod
     def from_dict(d:dict)->SimpleWord:
-        return SimpleWord(d["text"], d["lemma"], d["is_stop"], d["pos"], d["vector"])
+        return SimpleWord(
+            text = d["text"],
+            lemma = d["lemma"],
+            is_stop = d["is_stop"],
+            pos = d["pos"],
+            vector = d.get("vector", None),
+            ent_type = d["ent_type"],
+        )
     
     def similarity(self, other:SimpleWord|str|np.ndarray, model: SentenceTransformer)->float:
         v1 = model.encode(self.text)
@@ -141,11 +157,8 @@ class SimpleSentence:
             v += word.vector
         return v / len(self.words)
     
-    def to_dict(self)->dict:
-        return {
-            "text": self.text,
-            "words": [word.to_dict() for word in self.words]
-        }
+    def to_word_list(self, without_vector = True)->list[dict[str, str|bool|np.ndarray]]:
+        return [word.to_dict(without_vector = without_vector) for word in self.words]
     
     @staticmethod
     def from_dict(d:dict)->SimpleSentence:
@@ -205,10 +218,8 @@ class SimpleDoc:
     def __iter__(self)->Iterator[SimpleSentence]:
         return iter(self.sentences)
     
-    def to_dict(self)->dict:
-        return {
-            "sentences": [sentence.to_dict() for sentence in self.sentences]
-        }
+    def to_sentence_list(self, without_vector=True)->list[list[dict[str, str|bool|np.ndarray]]]:
+        return [sentence.to_word_list(without_vector=without_vector) for sentence in self.sentences]
     
     @staticmethod
     def from_dict(d:dict)->SimpleDoc:
@@ -232,26 +243,53 @@ class SimpleDocs:
     def __iter__(self)->Iterator[SimpleDoc]:
         return iter(self.docs)
     
-    def to_dict(self)->dict:
-        return {
-            "docs": [doc.to_dict() for doc in self.docs]
-        }
+    def to_dict(self, separate_vectors = True)->dict[str, list[list[dict[str, str|bool|np.ndarray]]] | np.ndarray]:
+        if separate_vectors:
+            vectors = []
+            for doc in self.docs:
+                for sentence in doc:
+                    for word in sentence:
+                        vectors.append(word.vector)
+            vectors = np.array(vectors)
+            return {
+                "docs": [doc.to_sentence_list(without_vector=True) for doc in self.docs],
+                "word_vectors": vectors
+            }
+        else:
+            return {
+                "docs": [doc.to_sentence_list(without_vector=False) for doc in self.docs],
+            }
     
     @staticmethod
-    def from_dict(d:dict)->SimpleDocs:
-        return SimpleDocs([SimpleDoc.from_dict(doc) for doc in d["docs"]])
-
-    def to_yaml(self, path:str):
-        with open(path, "w", encoding="utf-8") as f:
-            yaml.dump(self.to_dict(), f, allow_unicode=True, encoding="utf-8",
-                      default_flow_style=False, 
-                      Dumper=yaml.CDumper)
-    
-    @staticmethod
-    def from_yaml(path:str)->SimpleDocs:
-        with open(path, "r", encoding="utf-8") as f:
-            d = yaml.load(f, Loader=yaml.CLoader, encoding="utf-8")
-        return SimpleDocs.from_dict(d)
+    def from_dict(self, dumped_obj:dict[str, list[list[dict[str, str|bool|np.ndarray]]] | np.ndarray])->SimpleDocs:
+        if "word_vectors" in dumped_obj.keys():
+            # docs and vectors are separately dumped
+            vectors = dumped_obj["word_vectors"]
+            iword = 0
+            docs = []
+            for doc in dumped_obj["docs"]:
+                sentences = []
+                for sentence in doc:
+                    words = []
+                    for word in sentence:
+                        simple_word = SimpleWord.from_dict(word)
+                        simple_word.vector = vectors[iword]                        
+                        words.append(simple_word)
+                        iword += 1
+                    sentences.append(SimpleSentence(words))
+                docs.append(SimpleDoc(sentences))
+            return SimpleDocs(docs)
+        else:
+            docs = []
+            for doc in dumped_obj["docs"]:
+                sentences = []
+                for sentence in doc:
+                    words = []
+                    for word in sentence:
+                        words.append(SimpleWord.from_dict(word))
+                    sentences.append(SimpleSentence(words))
+                docs.append(SimpleDoc(sentences))
+            return SimpleDocs(docs)
 
     def to_pickle(self, path:str):
         with open(path, "wb") as f:
@@ -268,3 +306,7 @@ class SimpleDocs:
             out += f"{doc}, \n"
         out += "])"
         return out
+    
+    @property
+    def texts(self)->list[str]:
+        return [doc.text for doc in self.docs]

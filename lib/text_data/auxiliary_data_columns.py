@@ -1,35 +1,89 @@
+from __future__ import annotations
 from typing import Iterator
+import numpy as np
 import pandas as pd
 
 class AuxiliaryDataColumn:
     def __init__(
         self,
         column_name: str,
-        records: list,
+        records: list|np.ndarray = None,
         is_date: bool = False,
         is_label: bool = False,
         is_train_data: bool = False,
         is_generated: bool = False,
     ):
         self.column_name: str = column_name
-        self.records: list = records
+        self.records: np.ndarray = records
         self.is_date: bool = is_date
         self.is_label: bool = is_label
         self.is_train_data: bool = is_train_data
         self.is_generated: bool = is_generated
     
+    @property
+    def records(self) -> np.ndarray:
+        return self._records
+    
+    @records.setter
+    def records(self, records_given: list|np.ndarray):
+        if isinstance(records_given, list):
+            records_given = np.array(records_given)
+        self._records = records_given
+
     def __repr__(self) -> str:
         return f"AuxiliaryDataColumn({self.column_name=}, {self.is_date=}, {self.is_label=}, {self.is_train_data=}, {self.is_generated=})"
     
     def __len__(self) -> int:
+        if self.records is None:
+            return 0
         return len(self.records)
-
 
 class AuxiliaryDataColumns:
     def __init__(
             self,
             columns: list[AuxiliaryDataColumn]):
         self.columns = columns
+
+    def _dump_column_info(self) -> list[dict]:
+        return [
+            {
+                "column_name": column.column_name,
+                "is_date": column.is_date,
+                "is_label": column.is_label,
+                "is_train_data": column.is_train_data,
+                "is_generated": column.is_generated,
+            }
+            for column in self.columns
+        ]
+
+    def _dump_records(self) -> np.ndarray:
+        """AuxiliaryDataColumns の records を numpy.ndarray として返す
+        
+        Returns:
+            np.ndarray: [description]
+            
+        Notes:
+            - 各カラムの records は同じ長さであることを前提としている
+            - 各カラムの records は list であることを前提としている
+        """
+        return np.array([column.records for column in self.columns])
+    
+    def dump(self) -> dict:
+        return {
+            "info": self._dump_column_info(),
+            "data": self._dump_records(),
+        }
+
+    @staticmethod
+    def load(dumped_obj: dict) -> AuxiliaryDataColumns:
+        aux_info: list[dict[str, str|int|bool]] = dumped_obj["info"]
+        aux_data: np.ndarray = dumped_obj["data"]
+        columns = []
+        for icolumn, column_info in enumerate(aux_info):
+            column = AuxiliaryDataColumn(**column_info)
+            column.records = aux_data[icolumn]
+            columns.append(column)
+        return AuxiliaryDataColumns(columns)
 
     @property
     def columns(self) -> list[AuxiliaryDataColumn]:
