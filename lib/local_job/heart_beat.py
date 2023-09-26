@@ -26,11 +26,12 @@ class HeartBeat:
         return self.get_result()
 
 class Heart(ThreadPoolExecutor):
-    """while Heart is swinging, print the time every pulse_duration seconds
+    """while Heart is beating, print the time every pulse_duration seconds
     """
     def __init__(
             self,
             routine: Callable,
+            message: str|dict = None,
             pulse_duration: int = 30,
             pulse_function: Callable = None,
             ):
@@ -43,10 +44,8 @@ class Heart(ThreadPoolExecutor):
         self.routine = routine
         self.pulse: Future = None
         self.future: Future = None
+        self.message: str = message
         super().__init__(max_workers=2)
-    
-    def _pulse_function_default(self):
-        print(f"{datetime.now(tz=timezone_tokyo)}::send pulse")
     
     def beat(self, *routine_args, **routine_kwargs)->HeartBeat:
         self.pulse = self.submit(self._send_pulse)
@@ -58,10 +57,21 @@ class Heart(ThreadPoolExecutor):
             )
     
     def _send_pulse(self):
+        count = 0
         while self.future is None or self.future.done() == False:
-            self.pulse_function()
+            self.pulse_function(self.message, count)
             time.sleep(self.pulse_duration)
-
+            count += 1
+    
+    def _pulse_function_default(self, message: str|dict = None, count: int = 0):
+        if message is None or isinstance(message, str):
+            message_str = ""
+            message = {
+                "status": "alive",
+                "message": message_str,
+                "updated_at": datetime.now(timezone_tokyo).strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        print(f"pulse: {message}")
 
 if __name__ == '__main__':
     import streamlit as st
@@ -78,8 +88,12 @@ if __name__ == '__main__':
     if button:
         placeholder_button.button("start", disabled=True, key="start_disabled")
         with st.spinner():
-            heart = Heart(pulse_duration = 1.0, routine = very_slow_routine)
+            heart = Heart(
+                pulse_duration = 1.0,
+                routine = very_slow_routine,
+                message = "very_slow_routine",
+                )
             with heart.beat(coefficient = 1.0e-8) as heart_beat:
                 result = heart_beat.get_result()
         st.write(result)
-        placeholder_button.button("start", key="start_enabled")
+        placeholder_button.button("やりなおす")
