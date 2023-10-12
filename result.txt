@@ -1,0 +1,2 @@
+Embedding shape: (2000, 2)
+2023-10-12 09:31:54.838917 Test routine end

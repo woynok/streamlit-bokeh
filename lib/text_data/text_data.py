@@ -218,4 +218,4 @@ class TextData:
         """pickleで保存されたインスタンスを読み込む"""
         with open(filename, "rb") as f:
             return pickle.load(f)
-    
+            
