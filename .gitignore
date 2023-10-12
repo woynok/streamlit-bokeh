@@ -8,3 +8,5 @@ secret/
 __pycache__/
 data/*.csv
 dev_test_*
+*.svg
+local_job/
