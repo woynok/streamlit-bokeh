@@ -92,9 +92,7 @@ class WorkerInfo:
         self.updated_at = worker._updated_at.value
         self.message = worker._message.value
         self.tracebacks = worker._tracebacks[:]
-        print("here you are")
         if save:
-            print("here you are::saved")
             self.save()
         return self
     
@@ -168,23 +166,66 @@ class ProcessWorkerStoreSingleton:
     d_workers = {}
 
     @classmethod
-    def get(cls, key):
-        return cls.d_workers.get(key)
+    def get(cls, worker_name):
+        return cls.d_workers.get(worker_name)
     
     @classmethod
     def set(cls, worker):
         cls.d_workers[worker.name] = worker
 
-    def is_running(self, key):
-        worker = self.get(key)
+    @classmethod
+    def is_running(cls, worker_name):
+        worker = cls.get(worker_name)
         if worker is not None:
             return worker.is_alive()
         else:
             return False
     
-    def n_running(self):
-        return sum([self.is_running(key) for key in self.d_workers.keys()])
+    @classmethod
+    def get_n_running(cls)->int:
+        return sum([cls.is_running(worker_name) for worker_name in cls.d_workers.keys()])
 
-    def ok_to_start(self, max_n_workers = 2):
-        return self.n_running() < max_n_workers
+    @classmethod
+    def is_ok_to_start(cls, max_n_workers = 2)->bool:
+        return cls.get_n_running() < max_n_workers
+    
+    @classmethod
+    def get_worker_info(cls, worker_name)->WorkerInfo:
+        worker = cls.get(worker_name)
+        if worker is not None:
+            return worker.info
+        else:
+            return None
+    
+    @classmethod
+    def stop(cls, worker_name)->bool:
+        worker: Worker = cls.get(worker_name)
+        if worker is not None:
+            worker.should_stop.set()
+            worker.join()
+            worker.terminate()
+            cls.d_workers.pop(worker_name)
+            return True
+        else:
+            return False
+    
+    @classmethod
+    def get_all_worker_info_list(cls)->list[WorkerInfo]:
+        info_list = []
+        for worker_name in cls.d_workers.keys():
+            d = cls.get_worker_info(worker_name).to_dict()
+            d["is_alive"] = cls.is_running(worker_name)
+            info_list.append(d)
+        return info_list
+
+    @classmethod
+    def start_worker(cls, worker_name, routine, routine_args = None, routine_kwargs = None)->Worker:
+        if routine_args is None:
+            routine_args = []
+        if routine_kwargs is None:
+            routine_kwargs = {}
+        worker = Worker(name = worker_name, routine = routine, routine_args = routine_args, routine_kwargs = routine_kwargs, daemon=True)
+        cls.set(worker)
+        worker.start()
+        return worker
     
