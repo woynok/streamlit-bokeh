@@ -114,6 +114,7 @@ class Tree:
     
     def to_sac_cascade_items(self)->tuple[list[sac.CasItem], list[int], list[int]]:
         items = self.convert_recursively(Tree.convert_to_sac_cas_item, _called_by_root=True)
+        tree_list = self.get_flat_tree_list()
         checked_index = self.get_checked_index(tree_list)
         open_index = self.get_open_index(tree_list)
         return items, checked_index, open_index
